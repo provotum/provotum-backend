@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.Random;
 import java.util.logging.Logger;
 
 @Component
@@ -25,6 +26,17 @@ public class TopicPublisher {
     }
 
     public void send(String topic, AResponse response) {
+        Random rnd = new Random();
+        int timeout = rnd.nextInt(2);
+
+        logger.info("Simulating a waiting operation of " + timeout + "s before sending to topic");
+
+        try {
+            Thread.sleep(timeout * 1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         logger.info("Sending response with id " + response.getId() + " to topic " + topic);
         this.messageTemplate.convertAndSend(topic, response);
     }

@@ -1,26 +1,25 @@
 package org.provotum.backend.ethereum.accessor;
 
 import org.provotum.backend.communication.message.base.Status;
+import org.provotum.backend.communication.message.partial.Contract;
 import org.provotum.backend.communication.socket.message.deployment.BallotDeploymentResponse;
 import org.provotum.backend.communication.socket.message.event.ChangeEventResponse;
 import org.provotum.backend.communication.socket.message.event.VoteEventResponse;
 import org.provotum.backend.communication.socket.message.meta.GetQuestionResponse;
 import org.provotum.backend.communication.socket.message.meta.GetResultResponse;
-import org.provotum.backend.communication.message.partial.Contract;
 import org.provotum.backend.communication.socket.message.removal.BallotRemovalResponse;
 import org.provotum.backend.communication.socket.message.state.CloseVoteEventResponse;
 import org.provotum.backend.communication.socket.message.state.OpenVoteEventResponse;
+import org.provotum.backend.communication.socket.message.vote.VoteResponse;
 import org.provotum.backend.communication.socket.publisher.TopicPublisher;
 import org.provotum.backend.config.EthereumConfiguration;
 import org.provotum.backend.ethereum.config.BallotContractConfig;
 import org.provotum.backend.ethereum.wrappers.Ballot;
-import org.provotum.backend.communication.socket.message.vote.VoteResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
-import org.web3j.tuples.generated.Tuple2;
 import rx.Observer;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
@@ -28,6 +27,8 @@ import rx.schedulers.Schedulers;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
@@ -66,30 +67,18 @@ public class BallotContractAccessor extends AContractAccessor<Ballot, BallotCont
         this.executorService.submit(() -> {
             logger.info("Ballot deployment in new thread started.");
 
-            Ballot ballot;
             BallotDeploymentResponse response;
 
-            try {
-                ballot = Ballot.deploy(
-                    this.web3j,
-                    this.ethereumConfiguration.getWalletCredentials(),
-                    Ballot.GAS_PRICE,
-                    Ballot.GAS_LIMIT,
-                    config.getVotingQuestion(),
-                    config.getZeroKnowledgeContractAddress()
-                ).send();
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
 
-                // TODO: we might have to check that we do not get events duplicated times if we deploy multiple ballots
-                subscribeToVoteEvent(ballot);
-                subscribeToChangeEvent(ballot);
+            if (isSuccess) {
+                logger.info("Ballot deployment was successful.");
+                response = new BallotDeploymentResponse(Status.SUCCESS, "Deployment successful", new Contract("ballot", "0x" + UUID.randomUUID()));
 
-                logger.info("Ballot deployment was successful. Contract address is: " + ballot.getContractAddress());
-                response = new BallotDeploymentResponse(Status.SUCCESS, "Deployment successful", new Contract("ballot", ballot.getContractAddress()));
-            } catch (Exception e) {
-                logger.severe("Failed to deploy ballot: " + e.getMessage());
-                e.printStackTrace();
-
-                response = new BallotDeploymentResponse(Status.ERROR, "Deployment failed: " + e.getMessage(), new Contract("ballot", null));
+            } else {
+                logger.severe("Failed to deploy ballot: " + "Test failure");
+                response = new BallotDeploymentResponse(Status.ERROR, "Deployment failed: " + "Test failure", new Contract("ballot", null));
             }
 
             logger.info("Sending ballot deployment response to subscribers at topic " + TopicPublisher.DEPLOYMENT_TOPIC);
@@ -122,22 +111,16 @@ public class BallotContractAccessor extends AContractAccessor<Ballot, BallotCont
 
             BallotRemovalResponse response;
 
-            try {
-                String trx = Ballot.load(
-                    contractAddress,
-                    this.web3j,
-                    this.ethereumConfiguration.getWalletCredentials(),
-                    Ballot.GAS_PRICE,
-                    Ballot.GAS_LIMIT
-                ).destroy().send().getTransactionHash();
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
+            String trx = "0x" + UUID.randomUUID();
 
+            if (isSuccess) {
                 logger.info("Ballot contract removed. Transaction hash is: " + trx);
                 response = new BallotRemovalResponse(Status.SUCCESS, "Successfully removed ballot.", trx);
-            } catch (Exception e) {
-                logger.severe("Failed to remove ballot contract: " + e.getMessage());
-                e.printStackTrace();
 
-                response = new BallotRemovalResponse(Status.ERROR, "Failed to remove ballot at " + contractAddress + ": " + e.getMessage(), null);
+            } else {
+                response = new BallotRemovalResponse(Status.ERROR, "Failed to remove ballot at " + contractAddress + ": " + "Test failure", null);
             }
 
             logger.info("Sending ballot removal response to subscribers at topic " + TopicPublisher.REMOVAL_TOPIC);
@@ -161,23 +144,15 @@ public class BallotContractAccessor extends AContractAccessor<Ballot, BallotCont
             logger.info("Opening vote in new thread started.");
             OpenVoteEventResponse response;
 
-            try {
-                String trx = Ballot.load(
-                    contractAddress,
-                    this.web3j,
-                    this.ethereumConfiguration.getWalletCredentials(),
-                    Ballot.GAS_PRICE,
-                    Ballot.GAS_LIMIT
-                ).openVoting().send().getTransactionHash();
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
+            String trx = "0x" + UUID.randomUUID();
 
+            if (isSuccess) {
                 logger.info("Vote opened. Transaction hash is " + trx);
-
                 response = new OpenVoteEventResponse(Status.SUCCESS, "Opening vote was successful.", trx);
-            } catch (Exception e) {
-                logger.severe("Failed to open vote on ballot contract at " + contractAddress);
-                e.printStackTrace();
-
-                response = new OpenVoteEventResponse(Status.ERROR, "Opening vote failed: " + e.getMessage(), null);
+            } else {
+                response = new OpenVoteEventResponse(Status.ERROR, "Opening vote failed: " + "Test failure", null);
             }
 
             logger.info("Sending open vote response to subscribers at topic " + TopicPublisher.EVENT_TOPIC);
@@ -201,23 +176,16 @@ public class BallotContractAccessor extends AContractAccessor<Ballot, BallotCont
             logger.info("Closing vote in new thread started.");
             CloseVoteEventResponse response;
 
-            try {
-                String trx = Ballot.load(
-                    contractAddress,
-                    this.web3j,
-                    this.ethereumConfiguration.getWalletCredentials(),
-                    Ballot.GAS_PRICE,
-                    Ballot.GAS_LIMIT
-                ).closeVoting().send().getTransactionHash();
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
+            String trx = "0x" + UUID.randomUUID();
 
+            if (isSuccess) {
                 logger.info("Vote closed. Transaction hash is " + trx);
 
                 response = new CloseVoteEventResponse(Status.SUCCESS, "Closing vote was successful.", trx);
-            } catch (Exception e) {
-                logger.severe("Failed to close vote on ballot contract at " + contractAddress);
-                e.printStackTrace();
-
-                response = new CloseVoteEventResponse(Status.ERROR, "Closing vote failed: " + e.getMessage(), null);
+            } else {
+                response = new CloseVoteEventResponse(Status.ERROR, "Closing vote failed: " + "Test failure", null);
             }
 
             logger.info("Sending close vote response to subscribers at topic " + TopicPublisher.EVENT_TOPIC);
@@ -242,24 +210,16 @@ public class BallotContractAccessor extends AContractAccessor<Ballot, BallotCont
             logger.info("Submitting vote in new thread started.");
             VoteResponse response;
 
-            try {
-                // TODO: we might need to subscribe again to vote events in the case when the ballot contract is not deployed but only referenced.
-                String trx = Ballot.load(
-                    contractAddress,
-                    this.web3j,
-                    credentials,
-                    Ballot.GAS_PRICE,
-                    Ballot.GAS_LIMIT
-                ).vote(vote).send().getTransactionHash();
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
+            String trx = "0x" + UUID.randomUUID();
 
+            if (isSuccess) {
                 logger.info("Submitted vote. Transaction hash is " + trx);
 
                 response = new VoteResponse(Status.SUCCESS, "Successfully submitted vote.", trx);
-            } catch (Exception e) {
-                logger.severe("Failed to submit vote on ballot contract at " + contractAddress);
-                e.printStackTrace();
-
-                response = new VoteResponse(Status.ERROR, "Submitting vote failed: " + e.getMessage(), null);
+            } else {
+                response = new VoteResponse(Status.ERROR, "Submitting vote failed: " + "Test failure", null);
             }
 
             logger.info("Sending vote response to subscribers at topic " + TopicPublisher.EVENT_TOPIC);
@@ -283,34 +243,21 @@ public class BallotContractAccessor extends AContractAccessor<Ballot, BallotCont
             logger.info("Retrieving votes in new thread started.");
             GetResultResponse response;
 
-            try {
-                // TODO: we might need to subscribe again to vote events in the case when the ballot contract is not deployed but only referenced.
-                Ballot ballot = Ballot.load(
-                    contractAddress,
-                    this.web3j,
-                    this.ethereumConfiguration.getWalletCredentials(),
-                    Ballot.GAS_PRICE,
-                    Ballot.GAS_LIMIT
-                );
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
+            String trx = "0x" + UUID.randomUUID();
 
-                BigInteger totalVotes = ballot.getTotalVotes().send();
-                logger.info("Fetched a total of " + totalVotes + " votes from the Ballot contract at " + contractAddress);
+            if (isSuccess) {
+                logger.info("Submitted vote. Transaction hash is " + trx);
 
                 Map<String, BigInteger> votes = new HashMap<>();
-                for (BigInteger i = BigInteger.ZERO; i.compareTo(totalVotes) < 0; i = i.add(BigInteger.ONE)) {
-                    logger.info("Fetching vote at index " + i);
-                    Tuple2<String, BigInteger> tuple = ballot.getVote(i).send();
-                    logger.info("Vote at index " + i + " fetched");
-
-                    votes.put(tuple.getValue1(), tuple.getValue2());
-                }
+                votes.put("0x" + UUID.randomUUID(), BigInteger.ONE);
+                votes.put("0x" + UUID.randomUUID(), BigInteger.ZERO);
+                votes.put("0x" + UUID.randomUUID(), BigInteger.ZERO);
 
                 response = new GetResultResponse(Status.SUCCESS, "Successfully fetched votes.", votes);
-            } catch (Exception e) {
-                logger.severe("Failed to submit vote on ballot contract at " + contractAddress);
-                e.printStackTrace();
-
-                response = new GetResultResponse(Status.ERROR, "Fetching votes failed: " + e.getMessage(), null);
+            } else {
+                response = new GetResultResponse(Status.ERROR, "Fetching votes failed: " + "Test Failure", null);
             }
 
             logger.info("Sending get votes response to subscribers at topic " + TopicPublisher.META_TOPIC);
@@ -334,23 +281,16 @@ public class BallotContractAccessor extends AContractAccessor<Ballot, BallotCont
             logger.info("Retrieving vote question in new thread started.");
             GetQuestionResponse response;
 
-            try {
-                String question = Ballot.load(
-                    contractAddress,
-                    this.web3j,
-                    this.ethereumConfiguration.getWalletCredentials(),
-                    Ballot.GAS_PRICE,
-                    Ballot.GAS_LIMIT
-                ).getProposedQuestion().send();
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
+            String question = "Is Vitalik a genius?";
 
+            if (isSuccess) {
                 logger.info("Retrieved question: " + question);
 
                 response = new GetQuestionResponse(Status.SUCCESS, "Successfully retrieved voting question.", question);
-            } catch (Exception e) {
-                logger.severe("Failed to retrieve voting question on ballot contract at " + contractAddress);
-                e.printStackTrace();
-
-                response = new GetQuestionResponse(Status.ERROR, "Retrieving vote question failed: " + e.getMessage(), null);
+            } else {
+                response = new GetQuestionResponse(Status.ERROR, "Retrieving vote question failed: " + "Test failure", null);
             }
 
             logger.info("Sending voting question response to subscribers at topic " + TopicPublisher.META_TOPIC);

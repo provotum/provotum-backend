@@ -18,6 +18,8 @@ import rx.Observer;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
 
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
@@ -58,24 +60,17 @@ public class ZeroKnowledgeContractAccessor extends AContractAccessor<ZeroKnowled
 
             ZeroKnowledgeDeploymentResponse response;
 
-            try {
-                ZeroKnowledgeVerificator zkVerificator = ZeroKnowledgeVerificator.deploy(
-                    this.web3j,
-                    this.ethereumConfiguration.getWalletCredentials(),
-                    Ballot.GAS_PRICE,
-                    Ballot.GAS_LIMIT
-                ).send();
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
+            String trx = "0x" + UUID.randomUUID();
 
-                // TODO: we might have to check that we do not get events duplicated times if we deploy multiple zkVerificators
-                this.subscribeToProofEvent(zkVerificator);
+            if (isSuccess) {
+                logger.info("Zero-knowledge deployment was successful. Contract address is: " + trx);
+                response = new ZeroKnowledgeDeploymentResponse(Status.SUCCESS, "Deployment successful", new Contract("zero-knowledge", trx));
 
-                logger.info("Zero-knowledge deployment was successful. Contract address is: " + zkVerificator.getContractAddress());
-                response = new ZeroKnowledgeDeploymentResponse(Status.SUCCESS, "Deployment successful", new Contract("zero-knowledge", zkVerificator.getContractAddress()));
-            } catch (Exception e) {
-                logger.severe("Failed to deploy zero-knowledge verificator: " + e.getMessage());
-                e.printStackTrace();
-
-                response = new ZeroKnowledgeDeploymentResponse(Status.ERROR, "Deployment failed: " + e.getMessage(), new Contract("zero-knowledge", null));
+            } else {
+                logger.severe("Failed to deploy ballot: " + "Test failure");
+                response = new ZeroKnowledgeDeploymentResponse(Status.ERROR, "Deployment failed: " + "Test failure", new Contract("zero-knowledge", null));
             }
 
             logger.info("Sending zero-knowledge deployment response to subscribers at topic " + TopicPublisher.DEPLOYMENT_TOPIC);
@@ -109,22 +104,16 @@ public class ZeroKnowledgeContractAccessor extends AContractAccessor<ZeroKnowled
 
             ZeroKnowledgeRemovalResponse response;
 
-            try {
-                String trx = ZeroKnowledgeVerificator.load(
-                    contractAddress,
-                    this.web3j,
-                    this.ethereumConfiguration.getWalletCredentials(),
-                    ZeroKnowledgeVerificator.GAS_PRICE,
-                    ZeroKnowledgeVerificator.GAS_LIMIT
-                ).destroy().send().getTransactionHash();
+            Random rnd = new Random();
+            boolean isSuccess = rnd.nextBoolean();
+            String trx = "0x" + UUID.randomUUID();
 
+            if (isSuccess) {
                 logger.info("Zero-knowledge contract removed. Transaction hash is: " + trx);
                 response = new ZeroKnowledgeRemovalResponse(Status.SUCCESS, "Successfully removed zero-knowledge contract.", trx);
-            } catch (Exception e) {
-                logger.severe("Failed to remove zero-knowledge contract: " + e.getMessage());
-                e.printStackTrace();
 
-                response = new ZeroKnowledgeRemovalResponse(Status.ERROR, "Failed to remove zero-knowledge contract at " + contractAddress + ": " + e.getMessage(), null);
+            } else {
+                response = new ZeroKnowledgeRemovalResponse(Status.ERROR, "Failed to remove zero-knowledge contract at " + contractAddress + ": " + "Test failure", null);
             }
 
             logger.info("Sending zero-knowledge removal response to subscribers at topic " + TopicPublisher.REMOVAL_TOPIC);
